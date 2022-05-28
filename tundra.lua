@@ -31,6 +31,8 @@ local macosx = {
             "-std=c++11",
         },
 
+        HOSTSHLIBSUFFIX = ".rvp",
+
         SHLIBOPTS = {
 			"-lstdc++",
 			{ "-fsanitize=address"; Config = "*-*-debug-asan" },
@@ -40,6 +42,10 @@ local macosx = {
 			"-lstdc++",
 			{ "-fsanitize=address"; Config = "*-*-debug-asan" },
 		},
+    },
+
+    ReplaceEnv = {
+        HOSTSHLIBSUFFIX = ".rvp",
     },
 
     Frameworks = {
@@ -79,6 +85,7 @@ local gcc_env = {
             gcc_opts,
         },
 
+
         CXXOPTS = {
             gcc_opts,
             "-DRV_VERSION='\"$(RV_VERSION)\"'",
@@ -88,6 +95,7 @@ local gcc_env = {
 
     ReplaceEnv = {
         LD = "c++",
+        HOSTSHLIBSUFFIX = ".rvp",
     },
 }
 
@@ -113,6 +121,8 @@ local win64 = {
         CCOPTS = {
             win64_opts,
         },
+
+        HOSTSHLIBSUFFIX = ".rvp",
 
         CXXOPTS = {
             win64_opts,

@@ -14,7 +14,7 @@
 #define MA_NO_FLAC        // Disables the built-in FLAC decoder
 #define MA_NO_MP3         // Disables the built-in MP3 decoder
 #define MA_NO_GENERATION  // Disables generation APIs such a `ma_waveform` and `ma_noise`.
-#define A_API static      // Controls how public APIs should be decorated. Default is `extern`. |
+#define MA_API static      // Controls how public APIs should be decorated. Default is `extern`. |
 // #define MA_DEBUG_OUTPUT // Enable `printf()` output of debug logs (`MA_LOG_LEVEL_DEBUG`).
 // #define MA_COINIT_VALUE // Windows only. The value to pass to internal calls to `CoInitializeEx()`. Defaults to
 // `COINIT_MULTITHREADED`.
@@ -85,7 +85,7 @@ static void* miniaudio_output_create(const RVService* services) {
             data->default_index = i;
         }
         data->output_names[i] = (const char*)&data->devices[i].name;
-        rv_trace("%s", data->devices[i].name);
+        rv_trace("%s (default %d)", data->devices[i].name, data->devices[i].isDefault);
     }
 
     return data;
@@ -129,9 +129,13 @@ static void miniaudio_start(void* user_data, RVPlaybackCallback* callback) {
 
     ma_device_config config = ma_device_config_init(ma_device_type_playback);
     config.playback.pDeviceID = &data->devices[data->default_index].id;
-    config.playback.format = ma_format_unknown;
-    config.playback.channels = 0;
-    config.sampleRate = 0;
+    // TODO: We should use native output here instead, do this default until decoder is finished.
+    config.playback.format = ma_format_s16;
+    config.playback.channels = 2;
+    config.sampleRate = 48000;
+    // config.playback.format = ma_format_unknown;
+    // config.playback.channels = 0;
+    // config.sampleRate = 0;
     config.dataCallback = miniaudio_data_callback;
     config.pUserData = user_data;
 
