@@ -15,9 +15,7 @@
 #define MA_NO_MP3         // Disables the built-in MP3 decoder
 #define MA_NO_GENERATION  // Disables generation APIs such a `ma_waveform` and `ma_noise`.
 #define MA_API static     // Controls how public APIs should be decorated. Default is `extern`. |
-//#define MA_DEBUG_OUTPUT  // Enable `printf()` output of debug logs (`MA_LOG_LEVEL_DEBUG`).
-// #define MA_COINIT_VALUE // Windows only. The value to pass to internal calls to `CoInitializeEx()`. Defaults to
-// `COINIT_MULTITHREADED`.
+//#define MA_DEBUG_OUTPUT   // Enable `printf()` output of debug logs (`MA_LOG_LEVEL_DEBUG`).
 #define MINIAUDIO_IMPLEMENTATION
 #include "external/miniaudio.h"
 
@@ -160,15 +158,10 @@ static void miniaudio_start(void* user_data, RVPlaybackCallback* callback) {
     data->callback = *callback;
 
     ma_device_config config = ma_device_config_init(ma_device_type_playback);
-    // config.playback.pDeviceID = &data->devices[data->default_index].id;
-    // config.playback.pDeviceID = &data->devices[0].id;
-    // TODO: We should use native output here instead, do this default until decoder is finished.
-    // config.playback.format = ma_format_f32;
-    // config.playback.channels = 4;
-    config.sampleRate = 48000;
-    // config.playback.format = ma_format_unknown;
-    // config.playback.channels = 0;
-    // config.sampleRate = 0;
+    config.playback.pDeviceID = &data->devices[data->default_index].id;
+    config.playback.format = ma_format_unknown;
+    config.playback.channels = 0;
+    config.sampleRate = 0;
     config.dataCallback = miniaudio_data_callback;
     config.pUserData = user_data;
 
