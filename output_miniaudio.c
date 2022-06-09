@@ -14,8 +14,8 @@
 #define MA_NO_FLAC        // Disables the built-in FLAC decoder
 #define MA_NO_MP3         // Disables the built-in MP3 decoder
 #define MA_NO_GENERATION  // Disables generation APIs such a `ma_waveform` and `ma_noise`.
-#define MA_API static      // Controls how public APIs should be decorated. Default is `extern`. |
-// #define MA_DEBUG_OUTPUT // Enable `printf()` output of debug logs (`MA_LOG_LEVEL_DEBUG`).
+#define MA_API static     // Controls how public APIs should be decorated. Default is `extern`. |
+//#define MA_DEBUG_OUTPUT  // Enable `printf()` output of debug logs (`MA_LOG_LEVEL_DEBUG`).
 // #define MA_COINIT_VALUE // Windows only. The value to pass to internal calls to `CoInitializeEx()`. Defaults to
 // `COINIT_MULTITHREADED`.
 #define MINIAUDIO_IMPLEMENTATION
@@ -114,10 +114,42 @@ static int miniaudio_destroy(void* user_data) {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 static void miniaudio_data_callback(ma_device* device, void* output, const void* input, ma_uint32 frame_count) {
-    (void)input;
     MiniaudioOutput* data = (MiniaudioOutput*)device->pUserData;
-    data->callback.callback(data->callback.user_data, output, device->sampleRate, device->playback.channels,
-                            s_format_convert[device->playback.format], frame_count);
+
+    // temp hack to work-around broken miniaudio output for 4 channels
+    if (device->playback.channels == 4) {
+        RVAudioFormat format = {s_format_convert[device->playback.format], 2, device->sampleRate};
+        void* temp_output = alloca(frame_count * 4 * 4);  // max size alloc for the frame
+        if (data->callback.callback(data->callback.user_data, temp_output, format, frame_count) == 0) {
+            return;
+        }
+
+        if (device->playback.format == ma_format_f32) {
+            float* real_output = (float*)output;
+            float* temp = (float*)temp_output;
+            for (int i = 0; i < frame_count; ++i) {
+                *real_output++ = *temp++;
+                *real_output++ = *temp++;
+                *real_output++ = 0.0f;
+                *real_output++ = 0.0f;
+            }
+        } else if (device->playback.format == ma_format_s16) {
+            int16_t* real_output = (int16_t*)output;
+            int16_t* temp = (int16_t*)temp_output;
+            for (int i = 0; i < frame_count; ++i) {
+                *real_output++ = *temp++;
+                *real_output++ = *temp++;
+                *real_output++ = 0.0f;
+                *real_output++ = 0.0f;
+            }
+        } else {
+            rv_error("Unsupported hack format %d", device->playback.format);
+        }
+    } else {
+        RVAudioFormat format = {s_format_convert[device->playback.format], device->playback.channels,
+                                device->sampleRate};
+        data->callback.callback(data->callback.user_data, output, format, frame_count);
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -128,10 +160,11 @@ static void miniaudio_start(void* user_data, RVPlaybackCallback* callback) {
     data->callback = *callback;
 
     ma_device_config config = ma_device_config_init(ma_device_type_playback);
-    config.playback.pDeviceID = &data->devices[data->default_index].id;
+    // config.playback.pDeviceID = &data->devices[data->default_index].id;
+    // config.playback.pDeviceID = &data->devices[0].id;
     // TODO: We should use native output here instead, do this default until decoder is finished.
-    config.playback.format = ma_format_s16;
-    config.playback.channels = 2;
+    // config.playback.format = ma_format_f32;
+    // config.playback.channels = 4;
     config.sampleRate = 48000;
     // config.playback.format = ma_format_unknown;
     // config.playback.channels = 0;
@@ -140,11 +173,21 @@ static void miniaudio_start(void* user_data, RVPlaybackCallback* callback) {
     config.pUserData = user_data;
 
     if ((error = ma_device_init(&data->context, &config, &data->device)) != MA_SUCCESS) {
-        rv_error("Unable to miniaudio create device. Error %d", error);
+        rv_error("miniaudio: Unable to create device. Error %d", error);
         return;
     }
 
-    ma_device_start(&data->device);
+    for (int i = 0; i < data->device.playback.channels; ++i) {
+        rv_debug("channel map %d : %d", i, data->device.playback.channelMap[i]);
+    }
+
+    if ((error = ma_device_start(&data->device)) != MA_SUCCESS) {
+        rv_error("miniaudio: Unable to start device. Error %d", error);
+        ma_device_uninit(&data->device);
+        return;
+    }
+
+    rv_info("miniaudio device created");
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -167,12 +210,12 @@ static void miniaudio_static_init(const RVService* service_api) {
     g_rv_log = RVService_get_log(service_api, RV_LOG_API_VERSION);
 
     // format remapping that only needs to be done once.
-    s_format_convert[ma_format_unknown] = RVInputType_Unknown;
-    s_format_convert[ma_format_u8] = RVInputType_U8;
-    s_format_convert[ma_format_s16] = RVInputType_S16;
-    s_format_convert[ma_format_s24] = RVInputType_S24;
-    s_format_convert[ma_format_s32] = RVInputType_S32;
-    s_format_convert[ma_format_f32] = RVInputType_F32;
+    s_format_convert[ma_format_unknown] = 0;
+    s_format_convert[ma_format_u8] = RVAudioStreamFormat_U8;
+    s_format_convert[ma_format_s16] = RVAudioStreamFormat_S16;
+    s_format_convert[ma_format_s24] = RVAudioStreamFormat_S24;
+    s_format_convert[ma_format_s32] = RVAudioStreamFormat_S32;
+    s_format_convert[ma_format_f32] = RVAudioStreamFormat_F32;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
