@@ -216,8 +216,8 @@ static void miniaudio_static_init(const RVService* service_api) {
 static RVOutputPlugin s_miniaudio_plugin = {
     RV_OUTPUT_PLUGIN_API_VERSION,
     PLUGIN_NAME,
-    "0.0.1",
-    "0.11.9",
+    "0.0.2",
+    "0.11.21",
     miniaudio_output_create,
     miniaudio_destroy,
     miniaudio_output_targets_info,
