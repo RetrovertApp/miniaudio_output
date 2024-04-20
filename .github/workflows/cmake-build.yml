@@ -1,0 +1,38 @@
+name: CMake Build
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            build-dir: build
+          - os: windows-latest
+            build-dir: build
+          - os: macos-latest
+            build-dir: build
+
+    steps:
+    - uses: actions/checkout@v4
+      name: Checkout code
+
+    - name: Create Build Directory
+      run: mkdir ${{ matrix.build-dir }}
+
+    - name: Configure CMake
+      run: cmake -B ${{ matrix.build-dir }} -S .
+      working-directory: ${{ github.workspace }}
+
+    - name: Build
+      run: cmake --build ${{ matrix.build-dir }}
+      working-directory: ${{ github.workspace }}
